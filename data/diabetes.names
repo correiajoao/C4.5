@@ -1,0 +1,9 @@
+True, False
+Pregnancies : continuous
+Glucose : continuous
+BloodPressure : continuous
+SkinThickness : continuous
+Insulin : continuous
+BMI : continuous
+DiabetesPedigreeFunction : continuous
+Age : continuous

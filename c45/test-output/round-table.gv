@@ -1,0 +1,15 @@
+// Decision Tree
+digraph {
+	"petal width" [label="0.8 Iris-setosa"]
+	"petal width" [label=0.8]
+	"petal length" [label=4.75]
+	"sepal length" [label=4.95]
+	"sepal width" [label="2.45 Iris-versicolor"]
+	"sepal width" [label="2.45 Iris-virginica"]
+	"sepal length" [label="4.95 Iris-versicolor"]
+	"petal length" [label=4.75]
+	"sepal length" [label=7.0]
+	"sepal width" [label="3.25 Iris-virginica"]
+	"sepal width" [label="3.25 Iris-virginica"]
+	"sepal length" [label="7.0 Iris-virginica"]
+}
