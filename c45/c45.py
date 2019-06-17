@@ -3,7 +3,6 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-
 class C45:
 
 	"""Creates a decision tree with C4.5 algorithm"""
@@ -23,6 +22,7 @@ class C45:
 
 	def fetchData(self):
 		logging.info("FETCHING ATTRIBUTES SETTINGS ...")
+
 		with open(self.filePathToNames, "r") as file:
 			classes = file.readline()
 			self.classes = [x.strip() for x in classes.split(",")]
@@ -36,13 +36,10 @@ class C45:
 				values = [x.strip() for x in values.split(",")]
 				self.attrValues[attribute] = values
 				self.attributes.append(attribute)
-			
 			logging.info("	Atributes: {}".format(self.attributes))
-
+			
 		self.numAttributes = len(self.attrValues.keys())
-		
 		logging.info("	Number of atributes: {}".format(self.numAttributes))
-
 		with open(self.filePathToData, "r") as file:
 			for line in file:
 				row = [x.strip() for x in line.split(",")]
@@ -79,24 +76,24 @@ class C45:
 				#discrete
 				for index,child in enumerate(node.children):
 					if child.isLeaf:
-						print(indent +"("+ str(node.splitCounterId) +") " + node.label + " = " + attributes[index] + " : " + child.label)
+						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label)
 					else:
-						print(indent +"("+ str(node.splitCounterId) +") " + node.label + " = " + attributes[index] + " : ")
+						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
 						self.printNode(child, indent + "	")
 			else:
 				#numerical
 				leftChild = node.children[0]
 				rightChild = node.children[1]
 				if leftChild.isLeaf:
-					print(indent +"("+ str(node.splitCounterId) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label)
+					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label)
 				else:
-					print(indent +"("+ str(node.splitCounterId) +") "+ node.label + " <= " + str(node.threshold)+" : ")
+					print(indent +"("+ str(node.sourceSplit) +") "+ node.label + " <= " + str(node.threshold)+" : ")
 					self.printNode(leftChild, indent + "	")
 
 				if rightChild.isLeaf:
-					print(indent +"("+ str(node.splitCounterId) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label)
+					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label)
 				else:
-					print(indent +"("+ str(node.splitCounterId) +") " + node.label + " > " + str(node.threshold) + " : ")
+					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : ")
 					self.printNode(rightChild , indent + "	")
 
 
@@ -121,21 +118,21 @@ class C45:
 			#return a node with that class
 			return Node(True, self.allSameClass(curData), None, -1)
 		else:
-1
-			(best, best_threshold, splitted, maxEnt, splitCounterId) = self.splitAttribute(curData, curAttributes)
+
+			(best, best_threshold, splitted, maxEnt, sourceSplit) = self.splitAttribute(curData, curAttributes)
 			
+			logging.info("")
 			logging.info(" ---------------------------------------------------------------------------------------------")
-			logging.info("	Split id: {}".format(splitCounterId))
+			logging.info("	Split id: {}".format(sourceSplit))
 			logging.info("	Best attribute: {}".format(best))
 			logging.info("	Best thresoulder: {}".format(best_threshold))
-			logging.info("	Max ent: {}".format(maxEnt))
+			logging.info("	Max gain: {}".format(maxEnt))
 			logging.info(" ---------------------------------------------------------------------------------------------")
 			logging.info("")
 
-
 			remainingAttributes = curAttributes[:]
 			remainingAttributes.remove(best)
-			node = Node(False, best, best_threshold, splitCounterId)
+			node = Node(False, best, best_threshold, sourceSplit)
 			node.children = [self.recursiveGenerateTree(subset, remainingAttributes) for subset in splitted]
 			return node
 
@@ -146,7 +143,6 @@ class C45:
 			freq[index] += 1
 		maxInd = freq.index(max(freq))
 		return self.classes[maxInd]
-
 
 	def allSameClass(self, data):
 		for row in data:
@@ -218,8 +214,6 @@ class C45:
 							best_attribute = attribute
 							best_threshold = threshold
 
-				#logging.info("		Best current info gain: {} -- Value: {} -- MaxEn: {} -- Threshould: {}".format(attribute, e, maxEnt,  threshold));
-
 		return (best_attribute,best_threshold,splitted, maxEnt, splitId)
 
 	def gain(self,unionSet, subsets):
@@ -233,12 +227,9 @@ class C45:
 		#calculate impurity after split
 		weights = [float(len(subset))/float(S) for subset in subsets]
 		impurityAfterSplit = 0
-		#logging.info(	"Weight: {}".format(weights))
 
 		for i in range(len(subsets)):
 			impurityAfterSplit += weights[i]*self.entropy(subsets[i])
-
-		#logging.info(	"Impurity after: {}".format(impurityAfterSplit))
 	
 		#calculate total gain
 		totalGain = impurityBeforeSplit - impurityAfterSplit
@@ -257,12 +248,9 @@ class C45:
 			num_classes[classIndex] += 1
 
 		num_classes = [float(x)/float(S) for x in num_classes]
-
-		entropy = sum(-p * math.log(p,2) for p in num_classes if p)
-		return entropy
+		return sum(-p * math.log(p,2) for p in num_classes if p)
 
 	def classify(self, instance, tree):
-
 		if tree.isLeaf:
 			return tree.label
 		
@@ -277,14 +265,12 @@ class C45:
 				return self.classify(instance, tree.children[1])
 
 class Node:
-	def __init__(self,isLeaf, label, threshold, splitCounterId):
+	def __init__(self,isLeaf, label, threshold, sourceSplit):
 		self.label = label
 		self.threshold = threshold
 		self.isLeaf = isLeaf
 		self.children = []
 		
 		# === Just for log prupose ===
-		self.splitCounterId = splitCounterId
+		self.sourceSplit = sourceSplit
 		#=============================
-
-
