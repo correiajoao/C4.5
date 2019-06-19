@@ -1,7 +1,9 @@
+import sys
 import math
 import logging
+from importlib import reload
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, format='', level=logging.INFO, datefmt=None)
 
 class C45:
 
