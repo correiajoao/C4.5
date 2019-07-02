@@ -1,7 +1,7 @@
 import sys
 import math
 import logging
-from importlib import reload
+from copy import copy
 
 logging.basicConfig(stream=sys.stdout, format='', level=logging.INFO, datefmt=None)
 
@@ -17,6 +17,9 @@ class C45:
 		self.attrValues = {}
 		self.attributes = []
 		self.tree = None
+
+		self.train = []
+		self.test = []
 
 		# === Just for log prupose ===
 		self.splitCounter = 0
@@ -38,7 +41,6 @@ class C45:
 				values = [x.strip() for x in values.split(",")]
 				self.attrValues[attribute] = values
 				self.attributes.append(attribute)
-			logging.info("	Atributes: {}".format(self.attributes))
 			
 		self.numAttributes = len(self.attrValues.keys())
 		logging.info("	Number of atributes: {}".format(self.numAttributes))
@@ -63,62 +65,80 @@ class C45:
 					self.data[index][attr_index] = float(self.data[index][attr_index])
 				else:
 					AttrDiscrete.append(self.attributes[attr_index])
+		
 
+		self.test = self.data[0:int(len(self.data)*0.1)]
+		self.train = self.data[int(len(self.data)*0.1):int(len(self.data))]		
+
+		for i in self.train:
+			logging.info("	Train: {}".format(i));
+
+		for i in self.test:
+			logging.info("	Test: {}".format(i));
+
+		self.formatInstancesToTest()
 
 		logging.info("	Continuous attributes: {}".format(set(AttrContinuous)));
 		logging.info("	Discrete attributes: {}".format(set(AttrDiscrete)));
+		
+		logging.info("	Data size: {}".format(len(self.data)));
+		logging.info("	Train size: {}".format(len(self.train)));
+		logging.info("	Test size: {}".format(len(self.test)));
+		
+	def formatInstancesToTest(self):
+		atrAux = copy(self.attributes)
+		atrAux.append("outcome")
+		self.test = [dict(zip(atrAux, values)) for values in self.test]
 
 	def printTree(self):
 		logging.info("PRINTING TREE ...")
 		self.printNode(self.tree)
-
+		
 	def printNode(self, node, indent=""):
 		if not node.isLeaf:
 			if node.threshold is None:
 				#discrete
 				for index,child in enumerate(node.children):
 					if child.isLeaf:
-						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label)
+						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  " + str(node.infoGain) )
 					else:
-						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
+						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + str(node.infoGain))
 						self.printNode(child, indent + "	")
 			else:
 				#numerical
 				leftChild = node.children[0]
 				rightChild = node.children[1]
 				if leftChild.isLeaf:
-					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label)
+					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label + "  " + str(node.infoGain))
 				else:
-					print(indent +"("+ str(node.sourceSplit) +") "+ node.label + " <= " + str(node.threshold)+" : ")
+					print(indent +"("+ str(node.sourceSplit) +") "+ node.label + " <= " + str(node.threshold)+" : " + str(node.infoGain))
 					self.printNode(leftChild, indent + "	")
 
 				if rightChild.isLeaf:
-					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label)
+					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label + "  " + str(node.infoGain))
 				else:
-					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : ")
+					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + str(node.infoGain))
 					self.printNode(rightChild , indent + "	")
-
-
 
 	def generateTree(self):
 		logging.info("BUILDING TREE ...");
-		self.tree = self.recursiveGenerateTree(self.data, self.attributes)
+		self.tree = self.recursiveGenerateTree(self.train, self.attributes)
 
 	def recursiveGenerateTree(self, curData, curAttributes):
 		logging.info("	Attributes: {}".format(curAttributes))
 		
 		if len(curData) == 0:
 			#Fail
-			return Node(True, "Fail", None, -1)
+			return Node(True, "Fail", None, None, -1)
 
 		elif len(curAttributes) == 0:
 			#return a node with the majority class
 			majClass = self.getMajClass(curData)
-			return Node(True, majClass, None, -1)
+			return Node(True, majClass, None, None, -1)
 
 		elif self.allSameClass(curData) is not False:
 			#return a node with that class
-			return Node(True, self.allSameClass(curData), None, -1)
+			return Node(True, self.allSameClass(curData), None, None, -1)
 		else:
 
 			(best, best_threshold, splitted, maxEnt, sourceSplit) = self.splitAttribute(curData, curAttributes)
@@ -134,7 +154,7 @@ class C45:
 
 			remainingAttributes = curAttributes[:]
 			remainingAttributes.remove(best)
-			node = Node(False, best, best_threshold, sourceSplit)
+			node = Node(False, best, best_threshold, maxEnt, sourceSplit)
 			node.children = [self.recursiveGenerateTree(subset, remainingAttributes) for subset in splitted]
 			return node
 
@@ -208,8 +228,9 @@ class C45:
 								less.append(row)
 
 						e = self.gain(curData, [less, greater])
+						logging.info("			Current info gain: {} -- Threshould: {}".format(e, threshold));
+
 						if e >= maxEnt:
-							logging.info("			Best current info gain: {} -- Threshould: {}".format(e, threshold));
 							splitted = [less, greater]
 							splitId = self.splitCounter
 							maxEnt = e
@@ -252,24 +273,57 @@ class C45:
 		num_classes = [float(x)/float(S) for x in num_classes]
 		return sum(-p * math.log(p,2) for p in num_classes if p)
 
-	def classify(self, instance, tree):
+	def classify(self, tree):
+		logging.info("CLASSIFICATION RESULT ...");
+		for _class in self.classes:
+			correct = 0;
+			wrong = 0;
+
+			for instance in self.test:
+				if instance["outcome"] == _class: 
+					
+					classification = self.classifyInstance(copy(instance), tree, False) 
+
+					if classification == instance['outcome']:
+						logging.info("	Instance: {} -- Classification Result: {}".format(instance, classification))
+						correct += 1;
+					else:
+						logging.info("	(WRONG) Instance: {} -- Classification Result: {}".format(instance, classification))
+						wrong += 1;
+
+					self.classifyInstance(copy(instance), tree, True) 
+
+			logging.info("		Correct: {}".format(correct))
+			logging.info("		Wrong: {}".format(wrong))
+			logging.info("		Accuracy: {}".format(float(correct)/float(wrong+correct)))
+			logging.info("		")
+
+
+	def classifyInstance(self, instance, tree, log):
+
 		if tree.isLeaf:
 			return tree.label
-		
 		if(tree.threshold is None):
 				print("Not implemented")
 		else:
 			if(instance[tree.label] <= tree.threshold):
+				if log:
+					logging.info("		{} {} <= {}".format(tree.label, instance[tree.label], tree.threshold))
+
 				del instance[tree.label]
-				return self.classify(instance, tree.children[0])
+				return self.classifyInstance(instance, tree.children[0], log)
 			elif (instance[tree.label] > tree.threshold):
+				if log:
+					logging.info("		{} {} > {}".format(tree.label, instance[tree.label], tree.threshold))
+
 				del instance[tree.label]
-				return self.classify(instance, tree.children[1])
+				return self.classifyInstance(instance, tree.children[1], log)
 
 class Node:
-	def __init__(self,isLeaf, label, threshold, sourceSplit):
+	def __init__(self,isLeaf, label, threshold, infoGain, sourceSplit):
 		self.label = label
 		self.threshold = threshold
+		self.infoGain = infoGain
 		self.isLeaf = isLeaf
 		self.children = []
 		
