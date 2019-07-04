@@ -138,6 +138,7 @@ class C45:
 
 		elif self.allSameClass(curData) is not False:
 			#return a node with that class
+			logging.info("	No split, all data has the same class: {} ".format(curData[-1]))
 			return Node(True, self.allSameClass(curData), None, None, -1)
 		else:
 
