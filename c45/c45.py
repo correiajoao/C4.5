@@ -1,9 +1,14 @@
 import sys
 import math
+import pandas as pd
+import numpy as np
 import logging
 from copy import copy
+import matplotlib.pyplot as plt
 
 logging.basicConfig(stream=sys.stdout, format='', level=logging.INFO, datefmt=None)
+
+#%matplotlib inline
 
 class C45:
 
@@ -23,7 +28,13 @@ class C45:
 
 		# === Just for log prupose ===
 		self.splitCounter = 0
+		self.nodeId = 0
 		#=============================
+
+		# === Just for graph generation ===
+		self.infoGain = []
+		self.threshold = []
+		#==================================
 
 	def fetchData(self):
 		logging.info("FETCHING ATTRIBUTES SETTINGS ...")
@@ -44,6 +55,7 @@ class C45:
 			
 		self.numAttributes = len(self.attrValues.keys())
 		logging.info("	Number of atributes: {}".format(self.numAttributes))
+		
 		with open(self.filePathToData, "r") as file:
 			for line in file:
 				row = [x.strip() for x in line.split(",")]
@@ -51,6 +63,7 @@ class C45:
 					self.data.append(row)
 
 	def preprocessData(self):
+		
 		# === Just for log prupose ===
 		AttrContinuous = []
 		AttrDiscrete = []
@@ -76,6 +89,32 @@ class C45:
 		for i in self.test:
 			logging.info("	Test: {}".format(i));
 
+		
+		# === Plotting train and test instances ===
+		plt.rcParams['figure.figsize'] = [12, 10]
+
+		train = pd.DataFrame(self.train)
+		test = pd.DataFrame(self.test)
+
+		plt.subplot(2, 1, 1)
+		plt.title('Train instances')
+		plt.ylabel('Values')
+		plt.ylim(0,8)
+		train.columns=['petal length', 'sepal width', 'sepal length', 'petal width' ,"Outcome"]
+		pd.plotting.parallel_coordinates(train, "Outcome")
+		
+		plt.subplot(2, 1, 2)
+		plt.title('Test instances')
+		plt.xlabel('Attributes')
+		plt.ylabel('Values')
+		plt.ylim(0,8)
+		test.columns=['petal length', 'sepal width', 'sepal length', 'petal width' ,"Outcome"]
+		pd.plotting.parallel_coordinates(test, "Outcome")
+		
+		plt.show()
+		# ========================================
+
+
 		self.formatInstancesToTest()
 
 		logging.info("	Continuous attributes: {}".format(set(AttrContinuous)));
@@ -91,33 +130,39 @@ class C45:
 		self.test = [dict(zip(atrAux, values)) for values in self.test]
 
 	def printTree(self):
+		logging.info("")
+		logging.info("")
 		logging.info("PRINTING TREE ...")
 		self.printNode(self.tree)
+		logging.info("")
+		logging.info("")
 		
 	def printNode(self, node, indent=""):
+		
+
 		if not node.isLeaf:
 			if node.threshold is None:
 				#discrete
 				for index,child in enumerate(node.children):
 					if child.isLeaf:
-						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  " + str(node.infoGain) )
+						print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  ")
 					else:
-						print(indent +"("+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + str(node.infoGain))
+						print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
 						self.printNode(child, indent + "	")
 			else:
 				#numerical
 				leftChild = node.children[0]
 				rightChild = node.children[1]
 				if leftChild.isLeaf:
-					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label + "  " + str(node.infoGain))
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label + "  ")
 				else:
-					print(indent +"("+ str(node.sourceSplit) +") "+ node.label + " <= " + str(node.threshold)+" : " + str(node.infoGain))
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold)+" : ")
 					self.printNode(leftChild, indent + "	")
 
 				if rightChild.isLeaf:
-					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label + "  " + str(node.infoGain))
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label + "  " )
 				else:
-					print(indent +"("+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + str(node.infoGain))
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : ")
 					self.printNode(rightChild , indent + "	")
 
 	def generateTree(self):
@@ -125,21 +170,23 @@ class C45:
 		self.tree = self.recursiveGenerateTree(self.train, self.attributes)
 
 	def recursiveGenerateTree(self, curData, curAttributes):
+		self.nodeId += 1
 		logging.info("	Attributes: {}".format(curAttributes))
-		
+		logging.info("	Generating node: {}".format(self.nodeId))
+
 		if len(curData) == 0:
 			#Fail
-			return Node(True, "Fail", None, None, -1)
+			return Node(self.nodeId, True, "Fail", None, None, -1)
 
 		elif len(curAttributes) == 0:
 			#return a node with the majority class
 			majClass = self.getMajClass(curData)
-			return Node(True, majClass, None, None, -1)
+			return Node(self.nodeId, True, majClass, None, None, -1)
 
 		elif self.allSameClass(curData) is not False:
 			#return a node with that class
 			logging.info("	No split, all data has the same class: {} ".format(curData[-1]))
-			return Node(True, self.allSameClass(curData), None, None, -1)
+			return Node(self.nodeId, True, self.allSameClass(curData), None, None, -1)
 		else:
 
 			(best, best_threshold, splitted, maxEnt, sourceSplit) = self.splitAttribute(curData, curAttributes)
@@ -152,10 +199,16 @@ class C45:
 			logging.info("	Max gain: {}".format(maxEnt))
 			logging.info(" ---------------------------------------------------------------------------------------------")
 			logging.info("")
+            
+			plt.title('Info Gain distribution to Node '+ str(self.nodeId))
+			#plt.ylim(0, 1)
+			plt.xlabel('Threshold')
+			plt.ylabel('Info Gain')
+			plt.show()
 
 			remainingAttributes = curAttributes[:]
 			remainingAttributes.remove(best)
-			node = Node(False, best, best_threshold, maxEnt, sourceSplit)
+			node = Node(self.nodeId, False, best, best_threshold, maxEnt, sourceSplit)
 			node.children = [self.recursiveGenerateTree(subset, remainingAttributes) for subset in splitted]
 			return node
 
@@ -230,6 +283,8 @@ class C45:
 
 						e = self.gain(curData, [less, greater])
 						logging.info("			Current info gain: {} -- Threshould: {}".format(e, threshold));
+						self.infoGain.append(e)
+						self.threshold.append(threshold)                      
 
 						if e >= maxEnt:
 							splitted = [less, greater]
@@ -237,6 +292,14 @@ class C45:
 							maxEnt = e
 							best_attribute = attribute
 							best_threshold = threshold
+            
+            # ============ Plot InfoGain and values splitted to thin attribute ====================               
+			plt.rcParams['figure.figsize'] = [10, 7]
+			plt.plot(self.threshold, self.infoGain, marker='o', linestyle='dashed', linewidth=2, markersize=7, label=attribute)
+			plt.legend()
+			self.infoGain = []
+			self.threshold = []
+			# =====================================================================================
 
 		return (best_attribute,best_threshold,splitted, maxEnt, splitId)
 
@@ -321,7 +384,8 @@ class C45:
 				return self.classifyInstance(instance, tree.children[1], log)
 
 class Node:
-	def __init__(self,isLeaf, label, threshold, infoGain, sourceSplit):
+	def __init__(self, identifier, isLeaf, label, threshold, infoGain, sourceSplit):
+		self.identifier = identifier
 		self.label = label
 		self.threshold = threshold
 		self.infoGain = infoGain
