@@ -5,11 +5,12 @@ import numpy as np
 import logging
 from copy import copy
 import matplotlib.pyplot as plt
-from graphviz import Digraph
+from IPython.display import display
+from graphviz import Digraph, Source
 
 logging.basicConfig(stream=sys.stdout, format='', level=logging.INFO, datefmt=None)
 
-%matplotlib inline
+#%matplotlib inline
 
 class C45:
 
@@ -32,7 +33,7 @@ class C45:
 		self.nodeId = 0
 		#=============================
 
-		self.graph = Digraph('G', filename='tree.gv')
+		self.graph = Digraph('Decision Tree')
 		self.graph.node_attr.update(color='lightblue2', style='filled')
 
 		# === Just for graph generation ===
@@ -67,7 +68,6 @@ class C45:
 					self.data.append(row)
 
 	def preprocessData(self):
-		
 		# === Just for log prupose ===
 		AttrContinuous = []
 		AttrDiscrete = []
@@ -118,7 +118,6 @@ class C45:
 		plt.show()
 		# ========================================
 
-
 		self.formatInstancesToTest()
 
 		logging.info("	Continuous attributes: {}".format(set(AttrContinuous)));
@@ -127,88 +126,6 @@ class C45:
 		logging.info("	Data size: {}".format(len(self.data)));
 		logging.info("	Train size: {}".format(len(self.train)));
 		logging.info("	Test size: {}".format(len(self.test)));
-		
-	def formatInstancesToTest(self):
-		atrAux = copy(self.attributes)
-		atrAux.append("outcome")
-		self.test = [dict(zip(atrAux, values)) for values in self.test]
-
-	def printTree(self):
-
-		logging.info("")
-		logging.info("")
-		logging.info("PRINTING TREE ...")
-		self.printNode(copy(self.tree))
-		logging.info("")
-		logging.info("")
-		self.drawTree(copy(self.tree), True)
-		self.graph.view()
-		
-	def printNode(self, node, indent=""):	
-		if not node.isLeaf:
-			if node.threshold is None:
-				#discrete
-				for index,child in enumerate(node.children):
-					if child.isLeaf:
-						print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  ")
-					else:
-						print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
-						self.printNode(child, indent + "	")
-			else:
-				#numerical
-				leftChild = node.children[0]
-				rightChild = node.children[1]
-
-				if leftChild.isLeaf:
-					self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
-					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label + "  ")
-				else:
-					self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
-					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold)+" : ")
-					self.printNode(leftChild, indent + "	")
-
-				if rightChild.isLeaf:
-					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label + "  " )
-					self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
-				else:
-					self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
-					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : ")
-					self.printNode(rightChild , indent + "	")
-
-	def drawTree(self, node, first):
-
-		if not node.isLeaf:
-			
-			if(first == True):
-				self.graph.node(str(node.identifier), label=str(node.label))
-
-			if node.threshold is None:
-				print("")
-				#for index,child in enumerate(node.children):
-					#if child.isLeaf:
-						#print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  ")
-					#else:
-						#print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
-						#self.printNode(child, indent + "	")
-			else:
-				leftChild = node.children[0]
-				rightChild = node.children[1]
-
-				if leftChild.isLeaf:
-					self.graph.node(str(leftChild.identifier), label=str(leftChild.label))
-					#self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
-				else:
-					self.graph.node(str(leftChild.identifier), label=str(leftChild.label))
-					#self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
-					self.drawTree(leftChild,False)
-
-				if rightChild.isLeaf:
-					self.graph.node(str(rightChild.identifier), label=str(rightChild.label))
-					#self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
-				else:
-					self.graph.node(str(rightChild.identifier), label=str(rightChild.label))
-					#self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
-					self.drawTree(rightChild,False)				
 
 	def generateTree(self):
 		logging.info("BUILDING TREE ...");
@@ -256,29 +173,7 @@ class C45:
 			node = Node(self.nodeId, False, best, best_threshold, maxEnt, sourceSplit)
 			node.children = [self.recursiveGenerateTree(subset, remainingAttributes) for subset in splitted]
 			return node
-
-	def getMajClass(self, curData):
-		freq = [0]*len(self.classes)
-		for row in curData:
-			index = self.classes.index(row[-1])
-			freq[index] += 1
-		maxInd = freq.index(max(freq))
-		return self.classes[maxInd]
-
-	def allSameClass(self, data):
-		for row in data:
-			if row[-1] != data[0][-1]:
-				return False
-		return data[0][-1]
-
-	def isAttrDiscrete(self, attribute):
-		if attribute not in self.attributes:
-			raise ValueError("Attribute not listed")
-		elif (len(self.attrValues[attribute]) == 1) and (self.attrValues[attribute][0] == "continuous"):
-			return False
-		else:
-			return True
-
+	
 	def splitAttribute(self, curData, curAttributes):
 		splitted = []
 		splitId = -1
@@ -348,39 +243,78 @@ class C45:
 
 		return (best_attribute,best_threshold,splitted, maxEnt, splitId)
 
-	def gain(self,unionSet, subsets):
-		#input : data and disjoint subsets of it
-		#output : information gain
-		S = len(unionSet)
-		#calculate impurity before split
-		impurityBeforeSplit = self.entropy(unionSet)
+	def showTree(self):
 
-		#logging.info(	"Impurity before: {}".format(impurityBeforeSplit))
-		#calculate impurity after split
-		weights = [float(len(subset))/float(S) for subset in subsets]
-		impurityAfterSplit = 0
-
-		for i in range(len(subsets)):
-			impurityAfterSplit += weights[i]*self.entropy(subsets[i])
-	
-		#calculate total gain
-		totalGain = impurityBeforeSplit - impurityAfterSplit
-		return totalGain
-
-	def entropy(self, dataSet):
-		S = len(dataSet)
+		logging.info("")
+		logging.info("")
+		logging.info("PRINTING TREE ...")
+		self.printTree(copy(self.tree))
+		logging.info("")
+		logging.info("")
+		self.displayTree(copy(self.tree), True)
+		display(Source(self.graph))
 		
-		if S == 0:
-			return 0
-		
-		num_classes = [0 for i in self.classes]
+        
+	def printTree(self, node, indent=""):	
+		if not node.isLeaf:
+			if node.threshold is None:
+				#discrete
+				for index,child in enumerate(node.children):
+					if child.isLeaf:
+						print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  ")
+					else:
+						print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
+						self.printTree(child, indent + "	")
+			else:
+				#numerical
+				leftChild = node.children[0]
+				rightChild = node.children[1]
 
-		for row in dataSet:
-			classIndex = list(self.classes).index(row[-1])
-			num_classes[classIndex] += 1
+				if leftChild.isLeaf:
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label + "  ")
+				else:
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold)+" : ")
+					self.printTree(leftChild, indent + "	")
 
-		num_classes = [float(x)/float(S) for x in num_classes]
-		return sum(-p * math.log(p,2) for p in num_classes if p)
+				if rightChild.isLeaf:
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label + "  " )
+				else:
+					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : ")
+					self.printTree(rightChild , indent + "	")
+
+	def displayTree(self, node, first):
+		if not node.isLeaf:
+			
+			if(first == True):
+				self.graph.node(str(node.identifier), label=str(node.label))
+
+			if node.threshold is None:
+				print("")
+				#for index,child in enumerate(node.children):
+					#if child.isLeaf:
+						#print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  ")
+					#else:
+						#print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
+						#self.printNode(child, indent + "	")
+			else:
+				leftChild = node.children[0]
+				rightChild = node.children[1]
+
+				if leftChild.isLeaf:
+					self.graph.node(str(leftChild.identifier), label=str(leftChild.label), fillcolor="#00A868")
+					self.graph.edge(str(node.identifier), str(leftChild.identifier), label='<= ' + str(node.threshold))
+				else:
+					self.graph.node(str(leftChild.identifier), label=str(leftChild.label))
+					self.graph.edge(str(node.identifier), str(leftChild.identifier), label='<= ' + str(node.threshold))
+					self.displayTree(leftChild,False)
+
+				if rightChild.isLeaf:
+					self.graph.node(str(rightChild.identifier), label=str(rightChild.label), fillcolor="#00A868")
+					self.graph.edge(str(node.identifier), str(rightChild.identifier), label='> ' + str(node.threshold))
+				else:
+					self.graph.node(str(rightChild.identifier), label=str(rightChild.label))
+					self.graph.edge(str(node.identifier), str(rightChild.identifier), label='> ' + str(node.threshold))
+					self.displayTree(rightChild,False)				
 
 	def classify(self, tree):
 		logging.info("CLASSIFICATION RESULT ...");
@@ -389,7 +323,7 @@ class C45:
 			wrong = 0;
 
 			for instance in self.test:
-				if instance["outcome"] == _class: 
+				if instance['outcome'] == _class: 
 					
 					classification = self.classifyInstance(copy(instance), tree, False) 
 
@@ -427,6 +361,67 @@ class C45:
 
 				del instance[tree.label]
 				return self.classifyInstance(instance, tree.children[1], log)
+						
+	
+	def formatInstancesToTest(self):
+		atrAux = copy(self.attributes)
+		atrAux.append("outcome")
+		self.test = [dict(zip(atrAux, values)) for values in self.test]
+
+	def getMajClass(self, curData):
+		freq = [0]*len(self.classes)
+		for row in curData:
+			index = self.classes.index(row[-1])
+			freq[index] += 1
+		maxInd = freq.index(max(freq))
+		return self.classes[maxInd]
+
+	def allSameClass(self, data):
+		for row in data:
+			if row[-1] != data[0][-1]:
+				return False
+		return data[0][-1]
+
+	def isAttrDiscrete(self, attribute):
+		if attribute not in self.attributes:
+			raise ValueError("Attribute not listed")
+		elif (len(self.attrValues[attribute]) == 1) and (self.attrValues[attribute][0] == "continuous"):
+			return False
+		else:
+			return True
+
+	def gain(self,unionSet, subsets):
+		#input : data and disjoint subsets of it
+		#output : information gain
+		S = len(unionSet)
+		#calculate impurity before split
+		impurityBeforeSplit = self.entropy(unionSet)
+
+		#calculate impurity after split
+		weights = [float(len(subset))/float(S) for subset in subsets]
+		impurityAfterSplit = 0
+
+		for i in range(len(subsets)):
+			impurityAfterSplit += weights[i]*self.entropy(subsets[i])
+	
+		#calculate total gain
+		totalGain = impurityBeforeSplit - impurityAfterSplit
+		return totalGain
+
+	def entropy(self, dataSet):
+		S = len(dataSet)
+		
+		if S == 0:
+			return 0
+		
+		num_classes = [0 for i in self.classes]
+
+		for row in dataSet:
+			classIndex = list(self.classes).index(row[-1])
+			num_classes[classIndex] += 1
+
+		num_classes = [float(x)/float(S) for x in num_classes]
+		return sum(-p * math.log(p,2) for p in num_classes if p)
 
 class Node:
 	def __init__(self, identifier, isLeaf, label, threshold, infoGain, sourceSplit):
