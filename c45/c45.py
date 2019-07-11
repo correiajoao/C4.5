@@ -5,10 +5,11 @@ import numpy as np
 import logging
 from copy import copy
 import matplotlib.pyplot as plt
+from graphviz import Digraph
 
 logging.basicConfig(stream=sys.stdout, format='', level=logging.INFO, datefmt=None)
 
-#%matplotlib inline
+%matplotlib inline
 
 class C45:
 
@@ -30,6 +31,9 @@ class C45:
 		self.splitCounter = 0
 		self.nodeId = 0
 		#=============================
+
+		self.graph = Digraph('G', filename='tree.gv')
+		self.graph.node_attr.update(color='lightblue2', style='filled')
 
 		# === Just for graph generation ===
 		self.infoGain = []
@@ -130,16 +134,17 @@ class C45:
 		self.test = [dict(zip(atrAux, values)) for values in self.test]
 
 	def printTree(self):
+
 		logging.info("")
 		logging.info("")
 		logging.info("PRINTING TREE ...")
-		self.printNode(self.tree)
+		self.printNode(copy(self.tree))
 		logging.info("")
 		logging.info("")
+		self.drawTree(copy(self.tree), True)
+		self.graph.view()
 		
-	def printNode(self, node, indent=""):
-		
-
+	def printNode(self, node, indent=""):	
 		if not node.isLeaf:
 			if node.threshold is None:
 				#discrete
@@ -153,17 +158,57 @@ class C45:
 				#numerical
 				leftChild = node.children[0]
 				rightChild = node.children[1]
+
 				if leftChild.isLeaf:
+					self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
 					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold) + " : " + leftChild.label + "  ")
 				else:
+					self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
 					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " <= " + str(node.threshold)+" : ")
 					self.printNode(leftChild, indent + "	")
 
 				if rightChild.isLeaf:
 					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : " + rightChild.label + "  " )
+					self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
 				else:
+					self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
 					print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " > " + str(node.threshold) + " : ")
 					self.printNode(rightChild , indent + "	")
+
+	def drawTree(self, node, first):
+
+		if not node.isLeaf:
+			
+			if(first == True):
+				self.graph.node(str(node.identifier), label=str(node.label))
+
+			if node.threshold is None:
+				print("")
+				#for index,child in enumerate(node.children):
+					#if child.isLeaf:
+						#print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : " + child.label + "  ")
+					#else:
+						#print(indent +"(Node: "+ str(node.identifier) +" - " +"SrcSplit: "+ str(node.sourceSplit) +") " + node.label + " = " + attributes[index] + " : ")
+						#self.printNode(child, indent + "	")
+			else:
+				leftChild = node.children[0]
+				rightChild = node.children[1]
+
+				if leftChild.isLeaf:
+					self.graph.node(str(leftChild.identifier), label=str(leftChild.label))
+					#self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
+				else:
+					self.graph.node(str(leftChild.identifier), label=str(leftChild.label))
+					#self.graph.edge(str(node.identifier), str(leftChild.identifier), label=str(node.label) +' <= ' + str(node.threshold))
+					self.drawTree(leftChild,False)
+
+				if rightChild.isLeaf:
+					self.graph.node(str(rightChild.identifier), label=str(rightChild.label))
+					#self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
+				else:
+					self.graph.node(str(rightChild.identifier), label=str(rightChild.label))
+					#self.graph.edge(str(node.identifier), str(rightChild.identifier), label=str(node.label) +' > ' + str(node.threshold))
+					self.drawTree(rightChild,False)				
 
 	def generateTree(self):
 		logging.info("BUILDING TREE ...");
